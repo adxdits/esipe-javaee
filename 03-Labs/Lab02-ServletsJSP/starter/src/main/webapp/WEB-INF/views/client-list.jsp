@@ -18,16 +18,20 @@
             <p class="subtitle">${appName}</p>
         </header>
 
-        <!-- TODO: Add success message display -->
-        <!-- Hint: Use c:if to check if param.message exists -->
-        <!-- Display different messages based on param.message value (created, updated, deleted) -->
-        
+        <c:if test="${not empty param.message}">
+            <div class="alert alert-success">
+                <c:choose>
+                    <c:when test="${param.message == 'created'}">Client created successfully.</c:when>
+                    <c:when test="${param.message == 'updated'}">Client updated successfully.</c:when>
+                    <c:when test="${param.message == 'deleted'}">Client deleted successfully.</c:when>
+                </c:choose>
+            </div>
+        </c:if>
 
-        <!-- TODO: Add search form (optional) -->
-        <!-- <form method="get" action="${pageContext.request.contextPath}/clients" class="search-form">
-            <input type="text" name="search" placeholder="Search by name..." />
+        <form method="get" action="${pageContext.request.contextPath}/clients" class="search-form">
+            <input type="text" name="search" value="<c:out value='${search}' />" placeholder="Search by name..." />
             <button type="submit">Search</button>
-        </form> -->
+        </form>
 
         <!-- Client Table -->
         <table class="table">
@@ -41,43 +45,36 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- TODO: Loop through clients using c:forEach -->
-                <!-- Hint: <c:forEach var="client" items="${clients}"> -->
-                
-                <!-- TODO: For each client, create a table row with: -->
-                <!-- - client.id -->
-                <!-- - client.name (use c:out for safety) -->
-                <!-- - client.email -->
-                <!-- - client.accounts.size() -->
-                <!-- - Action links: View, Edit, Delete -->
-                
-                <!-- Example structure:
+                <c:forEach var="client" items="${clients}">
                 <tr>
                     <td>${client.id}</td>
                     <td><c:out value="${client.name}" /></td>
-                    <td>TODO: email</td>
-                    <td>TODO: account count</td>
+                    <td><c:out value="${client.email}" /></td>
+                    <td>${client.accounts.size()}</td>
                     <td>
-                        <a href="TODO: view link">View</a>
-                        <a href="TODO: edit link">Edit</a>
-                        TODO: Delete link (only if deletionEnabled is true)
+                        <a href="${pageContext.request.contextPath}/client?action=view&amp;id=${client.id}">View</a>
+                        <a href="${pageContext.request.contextPath}/client?action=edit&amp;id=${client.id}">Edit</a>
+                        <c:if test="${deletionEnabled}">
+                            <form method="post" action="${pageContext.request.contextPath}/client" class="inline-form">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="${client.id}">
+                                <button type="submit" onclick="return confirm('Delete this client?')">Delete</button>
+                            </form>
+                        </c:if>
                     </td>
                 </tr>
-                -->
+                </c:forEach>
                 
-                <!-- TODO: Close c:forEach -->
-                
-                <!-- TODO: Add empty state if no clients -->
-                <!-- Hint: Use c:if with empty condition -->
+                <c:if test="${empty clients}">
+                    <tr><td colspan="5" class="no-data">No clients found.</td></tr>
+                </c:if>
                 
             </tbody>
         </table>
 
         <!-- Actions -->
         <div class="actions">
-            <!-- TODO: Add "New Client" button -->
-            <!-- Link to: ${pageContext.request.contextPath}/client?action=new -->
-            
+            <a href="${pageContext.request.contextPath}/client?action=new" class="btn btn-primary">New Client</a>
         </div>
 
         <footer>

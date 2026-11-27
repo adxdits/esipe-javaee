@@ -21,15 +21,9 @@
         <div class="client-info card">
             <h2>Personal Information</h2>
             
-            <!-- TODO: Display client ID -->
             <p><strong>ID:</strong> ${client.id}</p>
-            
-            <!-- TODO: Display client name -->
-            <!-- Hint: Use c:out for safety -->
-            
-
-            <!-- TODO: Display client email -->
-            
+            <p><strong>Name:</strong> <c:out value="${client.name}" /></p>
+            <p><strong>Email:</strong> <c:out value="${client.email}" /></p>
 
         </div>
 
@@ -37,55 +31,46 @@
         <div class="accounts-section card">
             <h2>Accounts</h2>
             
-            <!-- TODO: Check if client has accounts -->
-            <!-- Use c:choose with c:when and c:otherwise -->
-            
-            <!-- If no accounts: -->
-            <!-- <p class="no-data">No accounts found for this client.</p> -->
-            
-            <!-- If accounts exist: -->
-            <!-- Create a table with columns: Account Number, Type, Balance -->
-            <!-- Loop through client.accounts using c:forEach -->
-            <!-- Format balance using fmt:formatNumber with type="currency" -->
-            
-            <!-- Example structure:
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Account Number</th>
-                        <th>Type</th>
-                        <th>Balance</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <c:choose>
+                <c:when test="${empty client.accounts}">
+                    <p class="no-data">No accounts found for this client.</p>
+                </c:when>
+                <c:otherwise>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Account Number</th>
+                                <th>Type</th>
+                                <th>Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                     <c:forEach var="account" items="${client.accounts}">
                         <tr>
-                            <td>TODO: account number</td>
-                            <td>TODO: account type</td>
-                            <td>TODO: formatted balance</td>
+                            <td><c:out value="${account.number}" /></td>
+                            <td><c:out value="${account.type}" /></td>
+                            <td><fmt:formatNumber value="${account.balance}" type="currency" /></td>
                         </tr>
                     </c:forEach>
-                </tbody>
-            </table>
-            -->
-            
+                        </tbody>
+                    </table>
+                </c:otherwise>
+            </c:choose>
         </div>
 
         <!-- Actions -->
         <div class="actions">
-            <!-- TODO: Add Edit button -->
-            <!-- Link to: ${pageContext.request.contextPath}/client?action=edit&id=${client.id} -->
-            
-
-            <!-- TODO: Add Delete button (only if deletionEnabled) -->
-            <!-- Use c:if to check deletionEnabled -->
-            <!-- Use form with POST method and action="delete" -->
-            <!-- Add confirmation with onclick="return confirm('Are you sure?')" -->
-            
-
-            <!-- TODO: Add Back to List button -->
-            <!-- Link to: ${pageContext.request.contextPath}/clients -->
-            
+            <a href="${pageContext.request.contextPath}/client?action=edit&amp;id=${client.id}"
+               class="btn btn-primary">Edit</a>
+            <c:if test="${deletionEnabled}">
+                <form method="post" action="${pageContext.request.contextPath}/client" class="inline-form">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="id" value="${client.id}">
+                    <button type="submit" class="btn btn-danger"
+                            onclick="return confirm('Are you sure you want to delete this client?')">Delete</button>
+                </form>
+            </c:if>
+            <a href="${pageContext.request.contextPath}/clients" class="btn btn-secondary">Back to List</a>
         </div>
     </div>
 </body>

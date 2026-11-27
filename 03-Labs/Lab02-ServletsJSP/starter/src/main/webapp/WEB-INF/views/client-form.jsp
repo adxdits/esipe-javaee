@@ -16,50 +16,46 @@
             <h1>${empty client ? 'New' : 'Edit'} Client</h1>
         </header>
 
-        <!-- TODO: Add error message display -->
-        <!-- Hint: Check if param.error exists and display appropriate message -->
-        
+        <c:if test="${not empty param.error}">
+            <div class="alert alert-danger">
+                <c:choose>
+                    <c:when test="${param.error == 'name_required'}">Name is required.</c:when>
+                    <c:when test="${param.error == 'email_required'}">Email is required.</c:when>
+                    <c:otherwise>Please check the submitted information.</c:otherwise>
+                </c:choose>
+            </div>
+        </c:if>
 
         <!-- Client Form -->
         <form method="post" action="${pageContext.request.contextPath}/client" class="form">
             
-            <!-- TODO: Add hidden field for action -->
-            <!-- If client is empty: action="create" -->
-            <!-- If client exists: action="update" -->
-            <!-- Hint: Use c:choose or conditional expression -->
-            
+            <input type="hidden" name="action" value="${empty client ? 'create' : 'update'}">
 
-            <!-- TODO: Add hidden field for id (only if editing) -->
-            <!-- Hint: Use c:if to check if client is not empty -->
-            
+            <c:if test="${not empty client}">
+                <input type="hidden" name="id" value="${client.id}">
+            </c:if>
 
             <!-- Name Field -->
             <div class="form-group">
                 <label for="name">Name: <span class="required">*</span></label>
-                <!-- TODO: Add input field for name -->
-                <!-- Set value to client.name if editing -->
-                <!-- Hint: <input type="text" id="name" name="name" value="<c:out value='${client.name}' />" required /> -->
-                
+                <input type="text" id="name" name="name" value="<c:out value='${client.name}' />"
+                       required maxlength="100">
             </div>
 
             <!-- Email Field -->
             <div class="form-group">
                 <label for="email">Email: <span class="required">*</span></label>
-                <!-- TODO: Add input field for email -->
-                <!-- Set value to client.email if editing -->
-                <!-- Add type="email" for HTML5 validation -->
-                
+                <input type="email" id="email" name="email" value="<c:out value='${client.email}' />"
+                       required maxlength="254">
             </div>
 
             <!-- Form Actions -->
             <div class="form-actions">
-                <!-- TODO: Add submit button -->
-                <!-- Text: "Create Client" if new, "Update Client" if editing -->
-                
+                <button type="submit" class="btn btn-primary">
+                    ${empty client ? 'Create Client' : 'Update Client'}
+                </button>
 
-                <!-- TODO: Add cancel button/link -->
-                <!-- Link back to: ${pageContext.request.contextPath}/clients -->
-                
+                <a href="${pageContext.request.contextPath}/clients" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
 

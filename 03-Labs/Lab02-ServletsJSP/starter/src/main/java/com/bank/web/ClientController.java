@@ -13,18 +13,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Controller servlet for managing clients.
  * Handles all client-related HTTP requests.
  * Uses JavaBeans pattern (no CDI).
  *
- * TODO: Implement the MVC controller pattern:
- * 1. Complete init() method
- * 2. Implement doGet() routing
- * 3. Implement doPost() form handling
- * 4. Add helper methods for each action
+ * Front controller for client management.
  */
 @WebServlet(
     name = "ClientController",
@@ -54,24 +49,20 @@ public class ClientController extends HttpServlet {
     public void init() throws ServletException {
         super.init();
         
-        // TODO: Initialize clientService (JavaBean)
-        // clientService = new ClientService();
-        
-        // TODO: Read configuration from ServletContext
-        // Example:
-        // String pageSizeParam = getServletContext().getInitParameter("web.pagination.default.size");
-        // defaultPageSize = (pageSizeParam != null) ? Integer.parseInt(pageSizeParam) : 10;
-        
-        // TODO: Add sample data
-        // Create 3-5 sample clients with accounts
-        // Example:
-        // Client client1 = new Client("John Doe", "john@example.com");
-        // clientService.create(client1);
-        // Account account1 = new Account("FR7612345678901234567890123", 1000.0, "CHECKING", client1.getId());
-        // account1.setId(1L);
-        // client1.addAccount(account1);
-        
-        
+        clientService = new ClientService();
+        String pageSize = getServletContext().getInitParameter("web.pagination.default.size");
+        try {
+            defaultPageSize = pageSize == null ? 10 : Integer.parseInt(pageSize);
+        } catch (NumberFormatException e) {
+            throw new ServletException("Invalid web.pagination.default.size: " + pageSize, e);
+        }
+        String deletion = getServletContext().getInitParameter("feature.client.deletion.enabled");
+        deletionEnabled = deletion == null || Boolean.parseBoolean(deletion);
+        appName = getServletContext().getInitParameter("app.name");
+        if (appName == null || appName.trim().isEmpty()) {
+            appName = "Banking Application";
+        }
+        clientService.initializeSampleData();
         log("ClientController initialized successfully");
     }
     
@@ -92,13 +83,28 @@ public class ClientController extends HttpServlet {
         
         String action = req.getParameter("action");
         
-        // TODO: Implement routing
-        // if (action == null || "list".equals(action)) {
-        //     listClients(req, resp);
-        // } else if ("view".equals(action)) {
-        //     viewClient(req, resp);
-        // } else if ...
-        
+        if ("/clients".equals(req.getServletPath())) {
+            listClients(req, resp);
+            return;
+        }
+        if (action == null || action.isEmpty()) {
+            resp.sendRedirect(req.getContextPath() + "/clients");
+            return;
+        }
+        switch (action) {
+            case "list":
+                listClients(req, resp);
+                break;
+            case "view":
+                viewClient(req, resp);
+                break;
+            case "new":
+            case "edit":
+                showForm(req, resp);
+                break;
+            default:
+                resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unknown client action");
+        }
     }
     
     /**
@@ -118,11 +124,24 @@ public class ClientController extends HttpServlet {
         
         String action = req.getParameter("action");
         
-        // TODO: Implement form handling
-        // if ("create".equals(action)) {
-        //     createClient(req, resp);
-        // } else if ...
-        
+        req.setCharacterEncoding("UTF-8");
+        if (action == null) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Missing action");
+            return;
+        }
+        switch (action) {
+            case "create":
+                createClient(req, resp);
+                break;
+            case "update":
+                updateClient(req, resp);
+                break;
+            case "delete":
+                deleteClient(req, resp);
+                break;
+            default:
+                resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unknown client action");
+        }
     }
     
     /**
@@ -138,14 +157,14 @@ public class ClientController extends HttpServlet {
     private void listClients(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         
-        // TODO: Get clients from service
-        
-        
-        // TODO: Set attributes
-        
-        
-        // TODO: Forward to JSP
-        
+        String search = req.getParameter("search");
+        req.setAttribute("clients",
+                search == null || search.trim().isEmpty()
+                        ? clientService.findAll()
+                        : clientService.findByName(search));
+        req.setAttribute("search", search == null ? "" : search);
+        setViewAttributes(req);
+        req.getRequestDispatcher("/WEB-INF/views/client-list.jsp").forward(req, resp);
     }
     
     /**
@@ -162,17 +181,18 @@ public class ClientController extends HttpServlet {
     private void viewClient(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
         
-        // TODO: Get id parameter and parse to Long
-        
-        
-        // TODO: Find client
-        
-        
-        // TODO: Check if found
-        
-        
-        // TODO: Set attribute and forward
-        
+        Long id = parseId(req, resp);
+        if (id == null) {
+            return;
+        }
+        Client client = clientService.findById(id);
+        if (client == null) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Client not found");
+            return;
+        }
+        req.setAttribute("client", client);
+        setViewAttributes(req);
+        req.getRequestDispatcher("/WEB-INF/views/client-details.jsp").forward(req, resp);
     }
     
     /**
@@ -189,11 +209,21 @@ public class ClientController extends HttpServlet {
         
         String action = req.getParameter("action");
         
-        // TODO: If editing, get client
-        
-        
-        // TODO: Set attribute and forward
-        
+        Client client = null;
+        if ("edit".equals(action)) {
+            Long id = parseId(req, resp);
+            if (id == null) {
+                return;
+            }
+            client = clientService.findById(id);
+            if (client == null) {
+                resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Client not found");
+                return;
+            }
+        }
+        req.setAttribute("client", client);
+        setViewAttributes(req);
+        req.getRequestDispatcher("/WEB-INF/views/client-form.jsp").forward(req, resp);
     }
     
     /**
@@ -210,17 +240,18 @@ public class ClientController extends HttpServlet {
     private void createClient(HttpServletRequest req, HttpServletResponse resp)
             throws IOException, ServletException {
         
-        // TODO: Get parameters
-        
-        
-        // TODO: Validate
-        
-        
-        // TODO: Create and save
-        
-        
-        // TODO: Redirect (PRG pattern)
-        
+        String name = trimToNull(req.getParameter("name"));
+        String email = trimToNull(req.getParameter("email"));
+        if (name == null) {
+            redirectWithError(req, resp, "name_required");
+            return;
+        }
+        if (email == null) {
+            redirectWithError(req, resp, "email_required");
+            return;
+        }
+        clientService.create(new Client(name, email));
+        resp.sendRedirect(req.getContextPath() + "/clients?message=created");
     }
     
     /**
@@ -237,8 +268,29 @@ public class ClientController extends HttpServlet {
     private void updateClient(HttpServletRequest req, HttpServletResponse resp)
             throws IOException, ServletException {
         
-        // TODO: Implement update logic
-        
+        String name = trimToNull(req.getParameter("name"));
+        String email = trimToNull(req.getParameter("email"));
+        if (name == null) {
+            redirectWithError(req, resp, "name_required");
+            return;
+        }
+        if (email == null) {
+            redirectWithError(req, resp, "email_required");
+            return;
+        }
+        Long id = parseId(req, resp);
+        if (id == null) {
+            return;
+        }
+        Client client = clientService.findById(id);
+        if (client == null) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Client not found");
+            return;
+        }
+        client.setName(name);
+        client.setEmail(email);
+        clientService.update(client);
+        resp.sendRedirect(req.getContextPath() + "/clients?message=updated");
     }
     
     /**
@@ -254,8 +306,50 @@ public class ClientController extends HttpServlet {
     private void deleteClient(HttpServletRequest req, HttpServletResponse resp)
             throws IOException {
         
-        // TODO: Implement delete logic
-        
+        if (!deletionEnabled) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Client deletion is disabled");
+            return;
+        }
+        Long id = parseId(req, resp);
+        if (id == null) {
+            return;
+        }
+        if (!clientService.delete(id)) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Client not found");
+            return;
+        }
+        resp.sendRedirect(req.getContextPath() + "/clients?message=deleted");
+    }
+
+    private Long parseId(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String value = req.getParameter("id");
+        try {
+            if (value == null || value.trim().isEmpty()) {
+                throw new NumberFormatException("missing id");
+            }
+            return Long.valueOf(value);
+        } catch (NumberFormatException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid client id");
+            return null;
+        }
+    }
+
+    private void setViewAttributes(HttpServletRequest req) {
+        req.setAttribute("appName", appName);
+        req.setAttribute("deletionEnabled", deletionEnabled);
+        req.setAttribute("defaultPageSize", defaultPageSize);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private void redirectWithError(HttpServletRequest req, HttpServletResponse resp, String error)
+            throws IOException {
+        resp.sendRedirect(req.getContextPath() + "/client?action=new&error=" + error);
     }
     
     /**

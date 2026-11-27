@@ -29,38 +29,40 @@ public class ApplicationLifecycleListener implements ServletContextListener {
     private static final Logger LOGGER = Logger.getLogger(ApplicationLifecycleListener.class.getName());
     
     // TODO: Create date formatter for logging
-    private static final DateTimeFormatter DATE_FORMATTER = null; // TODO: Initialize
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         ServletContext context = sce.getServletContext();
         
         // TODO: Record startup time (System.currentTimeMillis())
-        long startupTime = 0; // TODO: Get current time
-        LocalDateTime startupDateTime = null; // TODO: Get current date/time
-        
-        // TODO: Store startup information in ServletContext
-        
-        // TODO: Get application information
-        String appName = null; // TODO: Get servlet context name
-        String contextPath = null; // TODO: Get context path
-        int majorVersion = 0; // TODO: Get major version
-        int minorVersion = 0; // TODO: Get minor version
-        
-        // TODO: Store application metadata in ServletContext
-        // - appName
-        // - appVersion (1.0.0)
-        // - servletVersion
-        
-        // TODO: Initialize session statistics
-        // - activeSessions = 0
-        // - totalSessions = 0
+        long startupTime = System.currentTimeMillis();
+        LocalDateTime startupDateTime = LocalDateTime.now();
+        context.setAttribute("startupTime", startupTime);
+        context.setAttribute("startupDateTime", DATE_FORMATTER.format(startupDateTime));
+
+        String appName = context.getServletContextName();
+        if (appName == null || appName.isEmpty()) {
+            appName = "Banking Web Application";
+        }
+        String contextPath = context.getContextPath();
+        int majorVersion = context.getMajorVersion();
+        int minorVersion = context.getMinorVersion();
+        context.setAttribute("appName", appName);
+        context.setAttribute("appVersion", "1.0.0");
+        context.setAttribute("servletVersion", majorVersion + "." + minorVersion);
+        context.setAttribute("contextPath", contextPath);
+        context.setAttribute("activeSessions", 0);
+        context.setAttribute("totalSessions", 0);
         
         // TODO: Log startup information
         LOGGER.info("========================================");
         LOGGER.info("APPLICATION STARTUP");
         LOGGER.info("========================================");
-        // TODO: Log application details
+        LOGGER.info("Application: " + appName);
+        LOGGER.info("Context path: " + contextPath);
+        LOGGER.info("Servlet Version: " + majorVersion + "." + minorVersion);
+        LOGGER.info("Started at: " + DATE_FORMATTER.format(startupDateTime));
         LOGGER.info("========================================");
         
         // TODO: Initialize application resources
@@ -74,18 +76,20 @@ public class ApplicationLifecycleListener implements ServletContextListener {
         ServletContext context = sce.getServletContext();
         
         // TODO: Calculate uptime
-        Long startupTime = null; // TODO: Get startup time from context
-        long uptime = 0; // TODO: Calculate uptime in seconds
-        
-        // TODO: Get session statistics from ServletContext
-        Integer activeSessions = null; // TODO: Get activeSessions
-        Integer totalSessions = null; // TODO: Get totalSessions
+        Object startValue = context.getAttribute("startupTime");
+        long startupTime = startValue instanceof Number ? ((Number) startValue).longValue() : System.currentTimeMillis();
+        long uptime = Math.max(0, (System.currentTimeMillis() - startupTime) / 1000);
+        Object activeValue = context.getAttribute("activeSessions");
+        Object totalValue = context.getAttribute("totalSessions");
+        int activeSessions = activeValue instanceof Number ? ((Number) activeValue).intValue() : 0;
+        int totalSessions = totalValue instanceof Number ? ((Number) totalValue).intValue() : 0;
         
         // TODO: Log shutdown information
         LOGGER.info("========================================");
         LOGGER.info("APPLICATION SHUTDOWN");
         LOGGER.info("========================================");
-        // TODO: Log shutdown details and statistics
+        LOGGER.info("Uptime: " + formatUptime(uptime));
+        LOGGER.info("Active sessions: " + activeSessions + " | Total sessions: " + totalSessions);
         LOGGER.info("========================================");
         
         // TODO: Cleanup resources
@@ -120,7 +124,12 @@ public class ApplicationLifecycleListener implements ServletContextListener {
         // - Shutdown thread pools
         // - Clear caches
         
-        // TODO: Clear ServletContext attributes
+        context.removeAttribute("startupTime");
+        context.removeAttribute("startupDateTime");
+        context.removeAttribute("appName");
+        context.removeAttribute("appVersion");
+        context.removeAttribute("servletVersion");
+        context.removeAttribute("contextPath");
         
         LOGGER.info("Application resources cleaned up");
     }
@@ -129,9 +138,12 @@ public class ApplicationLifecycleListener implements ServletContextListener {
      * TODO: Implement method to format uptime in human-readable format
      */
     private String formatUptime(long seconds) {
-        // TODO: Calculate days, hours, minutes, seconds
-        // TODO: Format as "X days, Y hours, Z minutes, W seconds"
-        return "";
+        long days = seconds / 86400;
+        long hours = (seconds % 86400) / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long remainingSeconds = seconds % 60;
+        return days + " days, " + hours + " hours, " + minutes + " minutes, "
+                + remainingSeconds + " seconds";
     }
 }
 

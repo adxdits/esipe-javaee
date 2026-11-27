@@ -25,42 +25,38 @@ public class SessionCounterListener implements HttpSessionListener, HttpSessionA
     private static final Logger LOGGER = Logger.getLogger(SessionCounterListener.class.getName());
     
     // TODO: Create thread-safe counters using AtomicInteger
-    private static final AtomicInteger activeSessions = null; // TODO: Initialize
-    private static final AtomicInteger totalSessions = null; // TODO: Initialize
+    private static final AtomicInteger activeSessions = new AtomicInteger();
+    private static final AtomicInteger totalSessions = new AtomicInteger();
     
     @Override
     public void sessionCreated(HttpSessionEvent se) {
         HttpSession session = se.getSession();
         
-        // TODO: Increment counters
-        int active = 0; // TODO: Increment activeSessions
-        int total = 0; // TODO: Increment totalSessions
-        
-        // TODO: Store statistics in ServletContext
-        
-        // TODO: Log session creation with ID and counters
-        
-        // TODO: Set session timeout (30 minutes)
-        
-        // TODO: Store creation time in session
+        int active = activeSessions.incrementAndGet();
+        int total = totalSessions.incrementAndGet();
+        se.getSession().getServletContext().setAttribute("activeSessions", active);
+        se.getSession().getServletContext().setAttribute("totalSessions", total);
+        session.setMaxInactiveInterval(30 * 60);
+        session.setAttribute("creationTime", session.getCreationTime());
+        LOGGER.info("Session created: " + session.getId() + " | Active: " + active + " | Total: " + total);
     }
     
     @Override
     public void sessionDestroyed(HttpSessionEvent se) {
         HttpSession session = se.getSession();
         
-        // TODO: Decrement active sessions counter
-        int active = 0; // TODO: Decrement activeSessions
-        
-        // TODO: Update ServletContext
-        
-        // TODO: Calculate session duration
-        Long creationTime = null; // TODO: Get creation time from session
-        long duration = 0; // TODO: Calculate duration in seconds
-        
-        // TODO: Log session destruction with ID, active count, and duration
-        
-        // TODO: Log user logout if authenticated (check "user" attribute)
+        int active = activeSessions.decrementAndGet();
+        session.getServletContext().setAttribute("activeSessions", active);
+        Object value = session.getAttribute("creationTime");
+        long creationTime = value instanceof Number
+                ? ((Number) value).longValue()
+                : session.getCreationTime();
+        long duration = Math.max(0, (System.currentTimeMillis() - creationTime) / 1000);
+        LOGGER.info("Session destroyed: " + session.getId() + " | Active: " + active
+                + " | Duration: " + duration + " seconds");
+        if (session.getAttribute("user") != null) {
+            LOGGER.info("User logged out: " + session.getAttribute("user"));
+        }
     }
     
     @Override
@@ -68,9 +64,10 @@ public class SessionCounterListener implements HttpSessionListener, HttpSessionA
         String name = se.getName();
         Object value = se.getValue();
         
-        // TODO: Log user login if attribute name is "user"
-        
-        // TODO: Log attribute addition (use FINE level)
+        if ("user".equals(name)) {
+            LOGGER.info("User logged in: " + value);
+        }
+        LOGGER.fine("Session attribute added: " + name);
     }
     
     @Override
@@ -78,9 +75,10 @@ public class SessionCounterListener implements HttpSessionListener, HttpSessionA
         String name = se.getName();
         Object value = se.getValue();
         
-        // TODO: Log user logout if attribute name is "user"
-        
-        // TODO: Log attribute removal (use FINE level)
+        if ("user".equals(name)) {
+            LOGGER.info("User logged out: " + value);
+        }
+        LOGGER.fine("Session attribute removed: " + name);
     }
     
     @Override
@@ -89,29 +87,33 @@ public class SessionCounterListener implements HttpSessionListener, HttpSessionA
         Object oldValue = se.getValue();
         Object newValue = se.getSession().getAttribute(name);
         
-        // TODO: Log attribute replacement (use FINE level)
+        if ("user".equals(name)) {
+            LOGGER.info("User changed from " + oldValue + " to " + newValue);
+        }
+        LOGGER.fine("Session attribute replaced: " + name);
     }
     
     /**
      * TODO: Implement method to get the number of active sessions
      */
     public static int getActiveSessions() {
-        return 0; // TODO: Return activeSessions count
+        return activeSessions.get();
     }
     
     /**
      * TODO: Implement method to get the total number of sessions created
      */
     public static int getTotalSessions() {
-        return 0; // TODO: Return totalSessions count
+        return totalSessions.get();
     }
     
     /**
      * TODO: Implement method to reset counters (for testing)
      */
     public static void resetCounters() {
-        // TODO: Reset both counters to 0
-        // TODO: Log reset action
+        activeSessions.set(0);
+        totalSessions.set(0);
+        LOGGER.info("Session counters reset");
     }
 }
 

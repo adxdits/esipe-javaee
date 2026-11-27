@@ -58,21 +58,18 @@ public class WebAppReadinessCheck implements HealthCheck {
             // For now, assume services are ready if config is loaded
             boolean servicesReady = configLoaded;
             
-            // TODO: Build and return response
-            // If ready:
-            //   return builder.up()
-            //     .withData("configuration", "loaded")
-            //     .withData("services", "initialized")
-            //     .withData("app_name", appName)
-            //     .withData("environment", environment)
-            //     .build();
-            // If not ready:
-            //   return builder.down()
-            //     .withData("configuration", configLoaded ? "loaded" : "not loaded")
-            //     .withData("services", servicesReady ? "ready" : "not ready")
-            //     .build();
-            
-            return null; // TODO: Replace with actual response
+            if (configLoaded && servicesReady && environment != null && !environment.isEmpty()) {
+                return builder.up()
+                        .withData("configuration", "loaded")
+                        .withData("services", "initialized")
+                        .withData("app_name", appName)
+                        .withData("environment", environment)
+                        .build();
+            }
+            return builder.down()
+                    .withData("configuration", configLoaded ? "loaded" : "not loaded")
+                    .withData("services", servicesReady ? "ready" : "not ready")
+                    .build();
             
         } catch (Exception e) {
             // Return DOWN on any exception

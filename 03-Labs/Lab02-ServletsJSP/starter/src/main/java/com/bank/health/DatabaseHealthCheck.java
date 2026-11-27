@@ -41,18 +41,15 @@ public class DatabaseHealthCheck implements HealthCheck {
         // TODO: Check database availability
         boolean databaseAvailable = checkDatabase();
         
-        // TODO: Build and return response
-        // If available:
-        //   return builder.up()
-        //     .withData("status", "connected")
-        //     .withData("type", "in-memory")
-        //     .build();
-        // If not available:
-        //   return builder.down()
-        //     .withData("status", "disconnected")
-        //     .build();
-        
-        return null; // TODO: Replace with actual response
+        if (databaseAvailable) {
+            return builder.up()
+                    .withData("status", "connected")
+                    .withData("type", "in-memory")
+                    .build();
+        }
+        return builder.down()
+                .withData("status", "disconnected")
+                .build();
     }
     
     /**

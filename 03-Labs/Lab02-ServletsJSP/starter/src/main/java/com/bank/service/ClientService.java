@@ -6,7 +6,8 @@ import com.bank.model.Client;
 import com.bank.model.Account;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Service class for managing clients.
@@ -23,8 +24,8 @@ import java.util.stream.Collectors;
 public class ClientService {
     
     // In-memory storage
-    private Map<Long, Client> clients = new HashMap<>();
-    private Long nextId = 1L;
+    private final Map<Long, Client> clients = new ConcurrentHashMap<>();
+    private final AtomicLong nextId = new AtomicLong(1L);
     
     /**
      * Retrieve all clients.
@@ -35,8 +36,7 @@ public class ClientService {
      * @return List of all clients
      */
     public List<Client> findAll() {
-        // TODO: Return all clients as a list
-        return null;
+        return new ArrayList<>(clients.values());
     }
     
     /**
@@ -49,8 +49,7 @@ public class ClientService {
      * @return The client if found, null otherwise
      */
     public Client findById(Long id) {
-        // TODO: Return client with given ID
-        return null;
+        return clients.get(id);
     }
     
     /**
@@ -67,8 +66,9 @@ public class ClientService {
      * @return The created client with ID set
      */
     public Client create(Client client) {
-        // TODO: Generate ID and save client
-        return null;
+        client.setId(nextId.getAndIncrement());
+        clients.put(client.getId(), client);
+        return client;
     }
     
     /**
@@ -84,8 +84,11 @@ public class ClientService {
      * @return The updated client, or null if not found
      */
     public Client update(Client client) {
-        // TODO: Update client if exists
-        return null;
+        if (client == null || client.getId() == null || !clients.containsKey(client.getId())) {
+            return null;
+        }
+        clients.put(client.getId(), client);
+        return client;
     }
     
     /**
@@ -98,8 +101,7 @@ public class ClientService {
      * @return true if deleted, false if not found
      */
     public boolean delete(Long id) {
-        // TODO: Remove client from map
-        return false;
+        return clients.remove(id) != null;
     }
     
     /**
@@ -112,8 +114,14 @@ public class ClientService {
      * @return List of matching clients
      */
     public List<Client> findByName(String name) {
-        // TODO: Filter clients by name
-        return null;
+        if (name == null || name.trim().isEmpty()) {
+            return findAll();
+        }
+        String query = name.trim().toLowerCase(Locale.ROOT);
+        return clients.values().stream()
+                .filter(client -> client.getName() != null
+                        && client.getName().toLowerCase(Locale.ROOT).contains(query))
+                .collect(java.util.stream.Collectors.toList());
     }
     
     /**
@@ -126,8 +134,12 @@ public class ClientService {
      * @return true if added, false if client not found
      */
     public boolean addAccount(Long clientId, Account account) {
-        // TODO: Add account to client's account list
-        return false;
+        Client client = clients.get(clientId);
+        if (client == null || account == null) {
+            return false;
+        }
+        client.addAccount(account);
+        return true;
     }
     
     /**
@@ -137,6 +149,21 @@ public class ClientService {
      */
     public int count() {
         return clients.size();
+    }
+
+    public void initializeSampleData() {
+        Client jean = create(new Client("Jean Dupont", "jean.dupont@example.com"));
+        Client marie = create(new Client("Marie Martin", "marie.martin@example.com"));
+        Client luc = create(new Client("Luc Bernard", "luc.bernard@example.com"));
+        create(new Client("Sophie Leroy", "sophie.leroy@example.com"));
+        Client claire = create(new Client("Claire Moreau", "claire.moreau@example.com"));
+
+        addAccount(jean.getId(), new Account("FR7612345678901234567890123", 2000.0, "CHECKING", jean.getId()));
+        addAccount(jean.getId(), new Account("FR7698765432109876543210987", 4500.0, "SAVINGS", jean.getId()));
+        addAccount(marie.getId(), new Account("FR7611111111111111111111111", 2500.0, "CHECKING", marie.getId()));
+        addAccount(luc.getId(), new Account("FR7622222222222222222222222", 3000.0, "CHECKING", luc.getId()));
+        addAccount(luc.getId(), new Account("FR7633333333333333333333333", 10000.0, "SAVINGS", luc.getId()));
+        addAccount(claire.getId(), new Account("FR7644444444444444444444444", 750.0, "CHECKING", claire.getId()));
     }
 }
 

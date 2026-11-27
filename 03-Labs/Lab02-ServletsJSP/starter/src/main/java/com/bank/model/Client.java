@@ -8,10 +8,7 @@ import java.util.List;
 /**
  * Client entity representing a bank customer.
  * 
- * TODO: Complete this class by implementing:
- * 1. Constructors (default and parameterized)
- * 2. Getters and setters for all fields
- * 3. toString() method for debugging
+ * Client entity representing a bank customer.
  */
 public class Client {
     
@@ -20,41 +17,88 @@ public class Client {
     private String email;
     private List<Account> accounts;
     
-    // TODO: Add default constructor
-    // Initialize the accounts list to avoid NullPointerException
-    
-    
-    // TODO: Add constructor with name and email parameters
-    // Don't forget to initialize the accounts list
-    
-    
-    // TODO: Add getter for id
-    
-    
-    // TODO: Add setter for id
-    
-    
-    // TODO: Add getter for name
-    
-    
-    // TODO: Add setter for name
-    
-    
-    // TODO: Add getter for email
-    
-    
-    // TODO: Add setter for email
-    
-    
-    // TODO: Add getter for accounts
-    
-    
-    // TODO: Add setter for accounts
-    
-    
-    // TODO: Add toString() method
-    // Include id, name, email, and number of accounts
-    
+    public Client() {
+        accounts = new ArrayList<>();
+    }
+
+    public Client(String name, String email) {
+        this();
+        this.name = name;
+        this.email = email;
+    }
+
+    public Client(Long id, String name, String email) {
+        this(name, email);
+        this.id = id;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public List<Account> getAccounts() {
+        return accounts;
+    }
+
+    public void setAccounts(List<Account> accounts) {
+        this.accounts = accounts == null ? new ArrayList<>() : accounts;
+    }
+
+    public void addAccount(Account account) {
+        if (account != null) {
+            accounts.add(account);
+            account.setClientId(id);
+        }
+    }
+
+    public void removeAccount(Account account) {
+        if (accounts != null) {
+            accounts.remove(account);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "Client{id=" + id + ", name='" + name + "', email='" + email
+                + "', accounts=" + (accounts == null ? 0 : accounts.size()) + "}";
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Client)) {
+            return false;
+        }
+        Client client = (Client) other;
+        return id != null && id.equals(client.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id == null ? 0 : id.hashCode();
+    }
 }
 
 // Made with Bob

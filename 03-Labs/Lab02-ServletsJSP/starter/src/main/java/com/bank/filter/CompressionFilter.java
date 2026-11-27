@@ -1,156 +1,225 @@
 package com.bank.filter;
 
-/* © Copyright 2026 Olivier Planson. All rights reserved. Reproduction prohibited. Made with IBM Bob. */
-
-import jakarta.servlet.*;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.WriteListener;
 import jakarta.servlet.annotation.WebFilter;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
+import java.util.Locale;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
-/**
- * Compression Filter - Exercise 5
- * 
- * TODO: Implement compression filter that:
- * 1. Compresses HTTP responses using GZIP
- * 2. Checks if client supports GZIP (Accept-Encoding header)
- * 3. Only compresses text-based content types
- * 4. Only compresses responses above minimum size threshold
- * 
- * @author Your Name
- * @version 1.0
- */
 @WebFilter(filterName = "CompressionFilter", urlPatterns = "/*")
 public class CompressionFilter implements Filter {
-    
+
     private static final Logger LOGGER = Logger.getLogger(CompressionFilter.class.getName());
-    
-    // TODO: Define minimum compression size (e.g., 1024 bytes)
-    private static final int MIN_COMPRESSION_SIZE = 0; // TODO: Set minimum size
-    
-    // TODO: Define compressible content types
+    private static final int MIN_COMPRESSION_SIZE = 1024;
     private static final String[] COMPRESSIBLE_TYPES = {
-        // TODO: Add compressible content types (text/html, text/css, etc.)
+        "text/html", "text/css", "text/javascript", "application/javascript",
+        "application/json", "application/xml", "text/xml", "text/plain"
     };
-    
+
     @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-        LOGGER.info("CompressionFilter initialized");
-        // TODO: Log configuration
+    public void init(FilterConfig filterConfig) {
+        LOGGER.info("CompressionFilter initialized; minimum size: " + MIN_COMPRESSION_SIZE);
     }
-    
+
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
-        
+    public void doFilter(jakarta.servlet.ServletRequest request, jakarta.servlet.ServletResponse response,
+            FilterChain chain) throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
-        
-        // TODO: Check if client accepts GZIP compression
-        String acceptEncoding = null; // TODO: Get "Accept-Encoding" header
-        boolean supportsGzip = false; // TODO: Check if contains "gzip"
-        
-        if (supportsGzip) {
-            LOGGER.fine("Client supports GZIP compression");
-            
-            // TODO: Wrap response to capture output
-            CompressionResponseWrapper wrappedResponse = new CompressionResponseWrapper(httpResponse);
-            
-            try {
-                // TODO: Continue with filter chain
-                
-                // TODO: Get the captured content
-                byte[] content = null; // TODO: Get captured content
-                String contentType = null; // TODO: Get content type
-                
-                // TODO: Check if compression should be applied
-                if (false) { // TODO: Call shouldCompress method
-                    // TODO: Compress the content
-                    byte[] compressedContent = null; // TODO: Call compress method
-                    
-                    // TODO: Set compression headers BEFORE writing content
-                    // Check if response is not committed: if (!httpResponse.isCommitted())
-                    // - Content-Encoding: gzip
-                    // - Content-Length: compressed size (use setIntHeader)
-                    
-                    // TODO: Write compressed content to response
-                    
-                    // TODO: Log compression statistics
-                } else {
-                    // TODO: Write original content without compression
-                }
-            } finally {
-                // TODO: Finish response
+        if (!acceptsGzip(httpRequest.getHeader("Accept-Encoding"))) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        CompressionResponseWrapper wrappedResponse = new CompressionResponseWrapper(httpResponse);
+        try {
+            chain.doFilter(request, wrappedResponse);
+        } finally {
+            wrappedResponse.finishResponse();
+        }
+        if (wrappedResponse.isPassthrough()) {
+            return;
+        }
+
+        byte[] content = wrappedResponse.getCapturedContent();
+        String contentType = wrappedResponse.getContentType();
+        if (shouldCompress(content, contentType)) {
+            byte[] compressedContent = compress(content);
+            if (!httpResponse.isCommitted()) {
+                httpResponse.setHeader("Content-Encoding", "gzip");
+                httpResponse.setIntHeader("Content-Length", compressedContent.length);
+                httpResponse.addHeader("Vary", "Accept-Encoding");
             }
+            httpResponse.getOutputStream().write(compressedContent);
+            LOGGER.info("Response compressed: " + content.length + " bytes -> "
+                    + compressedContent.length + " bytes");
         } else {
-            // TODO: Client doesn't support GZIP, continue normally
-            LOGGER.fine("Client does not support GZIP compression");
+            if (!httpResponse.isCommitted()) {
+                httpResponse.setIntHeader("Content-Length", content.length);
+                httpResponse.addHeader("Vary", "Accept-Encoding");
+            }
+            httpResponse.getOutputStream().write(content);
         }
     }
-    
-    @Override
-    public void destroy() {
-        LOGGER.info("CompressionFilter destroyed");
-    }
-    
-    /**
-     * TODO: Implement method to check if content should be compressed
-     */
+
     private boolean shouldCompress(byte[] content, String contentType) {
-        // TODO: Check minimum size
-        // TODO: Check content type
+        if (content.length < MIN_COMPRESSION_SIZE || contentType == null) {
+            return false;
+        }
+        String normalizedType = contentType.toLowerCase(Locale.ROOT);
+        for (String type : COMPRESSIBLE_TYPES) {
+            if (normalizedType.startsWith(type)) {
+                return true;
+            }
+        }
         return false;
     }
-    
-    /**
-     * TODO: Implement method to compress content using GZIP
-     */
+
     private byte[] compress(byte[] content) throws IOException {
-        // TODO: Create ByteArrayOutputStream
-        // TODO: Create GZIPOutputStream
-        // TODO: Write content and return compressed bytes
-        return null;
+        ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzipStream = new GZIPOutputStream(byteStream)) {
+            gzipStream.write(content);
+        }
+        return byteStream.toByteArray();
     }
-    
-    /**
-     * Response wrapper to capture output for compression
-     * TODO: Complete the implementation
-     */
+
+    private boolean acceptsGzip(String acceptEncoding) {
+        if (acceptEncoding == null) {
+            return false;
+        }
+        for (String encoding : acceptEncoding.split(",")) {
+            String[] parts = encoding.trim().split(";");
+            if ("gzip".equalsIgnoreCase(parts[0].trim())) {
+                for (int i = 1; i < parts.length; i++) {
+                    if ("q=0".equalsIgnoreCase(parts[i].trim())
+                            || "q=0.0".equalsIgnoreCase(parts[i].trim())) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static class CompressionResponseWrapper extends HttpServletResponseWrapper {
-        private ByteArrayOutputStream outputStream;
+        private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         private PrintWriter writer;
         private ServletOutputStream servletOutputStream;
-        
-        public CompressionResponseWrapper(HttpServletResponse response) {
+        private boolean passthrough;
+
+        CompressionResponseWrapper(HttpServletResponse response) {
             super(response);
-            outputStream = new ByteArrayOutputStream();
         }
-        
+
         @Override
-        public ServletOutputStream getOutputStream() throws IOException {
-            // TODO: Implement to return custom ServletOutputStream
-            return null;
+        public ServletOutputStream getOutputStream() {
+            if (writer != null) {
+                throw new IllegalStateException("getWriter() has already been called");
+            }
+            if (servletOutputStream == null) {
+                servletOutputStream = new ServletOutputStream() {
+                    @Override
+                    public void write(int value) {
+                        outputStream.write(value);
+                    }
+
+                    @Override
+                    public boolean isReady() {
+                        return true;
+                    }
+
+                    @Override
+                    public void setWriteListener(WriteListener listener) {
+                        if (listener == null) {
+                            throw new IllegalArgumentException("WriteListener must not be null");
+                        }
+                        try {
+                            listener.onWritePossible();
+                        } catch (IOException e) {
+                            listener.onError(e);
+                        }
+                    }
+                };
+            }
+            return servletOutputStream;
         }
-        
+
         @Override
-        public PrintWriter getWriter() throws IOException {
-            // TODO: Implement to return custom PrintWriter
-            return null;
+        public PrintWriter getWriter() {
+            if (servletOutputStream != null) {
+                throw new IllegalStateException("getOutputStream() has already been called");
+            }
+            if (writer == null) {
+                writer = new PrintWriter(new OutputStreamWriter(
+                        outputStream, Charset.forName(getCharacterEncoding())), true);
+            }
+            return writer;
         }
-        
-        public byte[] getCapturedContent() {
-            // TODO: Flush writer if exists and return captured bytes
-            return null;
+
+        byte[] getCapturedContent() {
+            if (writer != null) {
+                writer.flush();
+            }
+            return outputStream.toByteArray();
         }
-        
-        public void finishResponse() {
-            // TODO: Close writer if exists
+
+        void finishResponse() {
+            if (writer != null) {
+                writer.flush();
+            }
+        }
+
+        @Override
+        public void flushBuffer() throws IOException {
+            if (writer != null) {
+                writer.flush();
+            }
+        }
+
+        @Override
+        public boolean isCommitted() {
+            return false;
+        }
+
+        @Override
+        public void resetBuffer() {
+            outputStream.reset();
+        }
+
+        @Override
+        public void sendError(int status) throws IOException {
+            passthrough = true;
+            super.sendError(status);
+        }
+
+        @Override
+        public void sendError(int status, String message) throws IOException {
+            passthrough = true;
+            super.sendError(status, message);
+        }
+
+        @Override
+        public void sendRedirect(String location) throws IOException {
+            passthrough = true;
+            super.sendRedirect(location);
+        }
+
+        boolean isPassthrough() {
+            return passthrough;
         }
     }
 }
-
-// Made with Bob

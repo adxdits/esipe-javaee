@@ -25,18 +25,19 @@ public class CorsFilter implements Filter {
     
     private static final Logger LOGGER = Logger.getLogger(CorsFilter.class.getName());
     
-    // TODO: Define CORS configuration constants
-    private static final String ALLOWED_ORIGINS = ""; // TODO: Add allowed origins
-    private static final String ALLOWED_METHODS = ""; // TODO: Add allowed methods
-    private static final String ALLOWED_HEADERS = ""; // TODO: Add allowed headers
-    private static final String EXPOSED_HEADERS = ""; // TODO: Add exposed headers
-    private static final String MAX_AGE = ""; // TODO: Set max age
-    private static final String ALLOW_CREDENTIALS = ""; // TODO: Set allow credentials
+    private static final String ALLOWED_ORIGINS =
+            "http://localhost:3000,http://localhost:4200,http://localhost:8080";
+    private static final String ALLOWED_METHODS = "GET, POST, PUT, DELETE, OPTIONS, HEAD";
+    private static final String ALLOWED_HEADERS =
+            "Content-Type, Authorization, X-Requested-With, Accept, Origin";
+    private static final String EXPOSED_HEADERS = "Location, Content-Disposition";
+    private static final String MAX_AGE = "3600";
+    private static final String ALLOW_CREDENTIALS = "true";
     
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
         LOGGER.info("CorsFilter initialized");
-        // TODO: Log CORS configuration
+        LOGGER.info("Allowed CORS origins: " + ALLOWED_ORIGINS);
     }
     
     @Override
@@ -46,35 +47,30 @@ public class CorsFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         
-        // TODO: Get origin header from request
-        String origin = null; // TODO: Get "Origin" header
-        String method = null; // TODO: Get HTTP method
+        String origin = httpRequest.getHeader("Origin");
+        String method = httpRequest.getMethod();
         
         LOGGER.fine("Processing CORS request - Origin: " + origin + ", Method: " + method);
         
-        // TODO: Check if origin is allowed
-        if (false) { // TODO: Check if origin is not null and is allowed
-            // TODO: Set CORS headers
-            // - Access-Control-Allow-Origin
-            // - Access-Control-Allow-Methods
-            // - Access-Control-Allow-Headers
-            // - Access-Control-Expose-Headers
-            // - Access-Control-Max-Age
-            // - Access-Control-Allow-Credentials
-            
+        if (origin != null && isOriginAllowed(origin)) {
+            httpResponse.setHeader("Access-Control-Allow-Origin", origin);
+            httpResponse.setHeader("Access-Control-Allow-Methods", ALLOWED_METHODS);
+            httpResponse.setHeader("Access-Control-Allow-Headers", ALLOWED_HEADERS);
+            httpResponse.setHeader("Access-Control-Expose-Headers", EXPOSED_HEADERS);
+            httpResponse.setHeader("Access-Control-Max-Age", MAX_AGE);
+            httpResponse.setHeader("Access-Control-Allow-Credentials", ALLOW_CREDENTIALS);
             LOGGER.fine("CORS headers set for origin: " + origin);
         } else if (origin != null) {
             LOGGER.warning("Origin not allowed: " + origin);
         }
         
-        // TODO: Handle preflight requests (OPTIONS method)
-        if (false) { // TODO: Check if method is OPTIONS
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             LOGGER.info("Handling preflight request from origin: " + origin);
-            // TODO: Set response status to OK
-            // TODO: Return without continuing filter chain
+            httpResponse.setStatus(HttpServletResponse.SC_OK);
+            return;
         }
         
-        // TODO: Continue with the filter chain for actual requests
+        chain.doFilter(request, response);
     }
     
     @Override
@@ -86,7 +82,11 @@ public class CorsFilter implements Filter {
      * TODO: Implement method to check if origin is allowed
      */
     private boolean isOriginAllowed(String origin) {
-        // TODO: Check if origin is in the allowed list
+        for (String allowed : ALLOWED_ORIGINS.split(",")) {
+            if (allowed.trim().equals(origin)) {
+                return true;
+            }
+        }
         return false;
     }
 }

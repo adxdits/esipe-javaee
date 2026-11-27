@@ -13,14 +13,7 @@ import java.util.logging.Logger;
 /**
  * Authentication Filter - Exercise 1
  * 
- * TODO: Implement authentication filter that:
- * 1. Checks if user is authenticated before accessing protected resources
- * 2. Redirects to login page if not authenticated
- * 3. Manages user sessions
- * 4. Protects specific URL patterns
- * 
- * Protected URLs: /clients/*, /admin/*
- * Public URLs: /login, /logout, /public/*, /css/*, /js/*, /images/*
+ * Redirects unauthenticated requests to protected URL prefixes to the login page.
  * 
  * @author Your Name
  * @version 1.0
@@ -30,13 +23,12 @@ public class AuthenticationFilter implements Filter {
     
     private static final Logger LOGGER = Logger.getLogger(AuthenticationFilter.class.getName());
     
-    // TODO: Define lists of public and protected URLs
     private static final List<String> PUBLIC_URLS = Arrays.asList(
-        // TODO: Add public URLs that don't require authentication
+        "/login", "/logout", "/public/", "/css/", "/js/", "/images/"
     );
     
     private static final List<String> PROTECTED_URLS = Arrays.asList(
-        // TODO: Add protected URLs that require authentication
+        "/clients/", "/admin/"
     );
     
     @Override
@@ -52,42 +44,33 @@ public class AuthenticationFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         
-        // TODO: Get the request URI and extract the path
-        String requestURI = null; // TODO: Get request URI
-        String contextPath = null; // TODO: Get context path
-        String path = null; // TODO: Extract path from URI
+        String requestURI = httpRequest.getRequestURI();
+        String contextPath = httpRequest.getContextPath();
+        String path = requestURI.substring(contextPath.length());
         
         LOGGER.fine("Processing authentication for path: " + path);
         
-        // TODO: Check if the URL is public (no authentication required)
-        if (false) { // TODO: Replace with isPublicUrl(path)
+        if (isPublicUrl(path)) {
             LOGGER.fine("Public URL, allowing access: " + path);
             chain.doFilter(request, response);
             return;
         }
         
-        // TODO: Check if the URL requires authentication
-        if (false) { // TODO: Replace with isProtectedUrl(path)
-            // TODO: Get the session (don't create if doesn't exist)
-            HttpSession session = null; // TODO: Get session
+        if (isProtectedUrl(path)) {
+            HttpSession session = httpRequest.getSession(false);
             
-            // TODO: Check if user is authenticated (check session and "user" attribute)
-            if (false) { // TODO: Check authentication
+            if (session == null || session.getAttribute("user") == null) {
                 LOGGER.warning("Unauthorized access attempt to: " + path);
-                
-                // TODO: Store the original URL to redirect after login
-                // TODO: Create new session and store originalUrl
-                
-                // TODO: Redirect to login page
+                httpRequest.getSession(true).setAttribute("originalUrl", requestURI);
+                httpResponse.sendRedirect(contextPath + "/login");
                 return;
             }
             
-            // TODO: User is authenticated, log the access
-            String username = null; // TODO: Get username from session
+            String username = String.valueOf(session.getAttribute("user"));
             LOGGER.info("Authenticated user '" + username + "' accessing: " + path);
         }
         
-        // TODO: Continue with the filter chain
+        chain.doFilter(request, response);
     }
     
     @Override
@@ -99,16 +82,14 @@ public class AuthenticationFilter implements Filter {
      * TODO: Implement method to check if the URL is public
      */
     private boolean isPublicUrl(String path) {
-        // TODO: Check if path starts with any public URL
-        return false;
+        return PUBLIC_URLS.stream().anyMatch(path::startsWith);
     }
     
     /**
      * TODO: Implement method to check if the URL is protected
      */
     private boolean isProtectedUrl(String path) {
-        // TODO: Check if path starts with any protected URL
-        return false;
+        return PROTECTED_URLS.stream().anyMatch(path::startsWith);
     }
 }
 

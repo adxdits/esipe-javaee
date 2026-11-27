@@ -7,6 +7,7 @@ import jakarta.servlet.annotation.WebFilter;
 import jakarta.servlet.http.*;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.Locale;
 import java.util.logging.Logger;
 
 /**
@@ -38,22 +39,15 @@ public class LoggingFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
         
-        // TODO: Record start time
-        long startTime = 0; // TODO: Get current time in milliseconds
-        
-        // TODO: Log request details (call logRequest method)
-        
-        // TODO: Wrap response to capture status code
+        long startTime = System.currentTimeMillis();
+        logRequest(httpRequest);
         ResponseWrapper responseWrapper = new ResponseWrapper(httpResponse);
         
         try {
-            // TODO: Continue with the filter chain
+            chain.doFilter(request, responseWrapper);
         } finally {
-            // TODO: Record end time and calculate duration
-            long endTime = 0; // TODO: Get current time
-            long duration = 0; // TODO: Calculate duration
-            
-            // TODO: Log response details (call logResponse method)
+            long duration = System.currentTimeMillis() - startTime;
+            logResponse(httpRequest, responseWrapper, duration);
         }
     }
     
@@ -69,16 +63,26 @@ public class LoggingFilter implements Filter {
         StringBuilder logMessage = new StringBuilder();
         logMessage.append("\n========== Incoming Request ==========\n");
         
-        // TODO: Log HTTP method
-        // TODO: Log request URI
-        // TODO: Log query string
-        // TODO: Log remote address
+        logMessage.append("Method: ").append(request.getMethod()).append('\n');
+        logMessage.append("URI: ").append(request.getRequestURI()).append('\n');
+        logMessage.append("Query String: ").append(request.getQueryString()).append('\n');
+        logMessage.append("Remote Address: ").append(request.getRemoteAddr()).append('\n');
         
         // TODO: Log request parameters
         logMessage.append("Parameters:\n");
-        // TODO: Iterate through parameter names and values
+        Enumeration<String> names = request.getParameterNames();
+        while (names.hasMoreElements()) {
+            String name = names.nextElement();
+            String value = name.toLowerCase(Locale.ROOT).matches(".*(password|token|secret|authorization).*")
+                    ? "[REDACTED]"
+                    : request.getParameter(name);
+            logMessage.append("  ").append(name).append(" = ").append(value).append('\n');
+        }
         
-        // TODO: Log session info if exists
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            logMessage.append("Session ID: ").append(session.getId()).append('\n');
+        }
         
         logMessage.append("======================================");
         LOGGER.info(logMessage.toString());
@@ -91,16 +95,18 @@ public class LoggingFilter implements Filter {
         StringBuilder logMessage = new StringBuilder();
         logMessage.append("\n========== Outgoing Response ==========\n");
         
-        // TODO: Log HTTP method
-        // TODO: Log request URI
-        // TODO: Log status code
-        // TODO: Log content type
-        // TODO: Log execution time
-        
-        // TODO: Add warning for slow requests (> 1 second)
+        logMessage.append("Method: ").append(request.getMethod()).append('\n');
+        logMessage.append("URI: ").append(request.getRequestURI()).append('\n');
+        logMessage.append("Status Code: ").append(response.getStatus()).append('\n');
+        logMessage.append("Content Type: ").append(response.getContentType()).append('\n');
+        logMessage.append("Execution Time: ").append(duration).append(" ms\n");
         
         logMessage.append("=======================================");
-        LOGGER.info(logMessage.toString());
+        if (duration > 1000) {
+            LOGGER.warning(logMessage.toString());
+        } else {
+            LOGGER.info(logMessage.toString());
+        }
     }
     
     /**
@@ -116,22 +122,26 @@ public class LoggingFilter implements Filter {
         
         @Override
         public void setStatus(int sc) {
-            // TODO: Store status code and call super
+            status = sc;
+            super.setStatus(sc);
         }
         
         @Override
         public void sendError(int sc) throws IOException {
-            // TODO: Store status code and call super
+            status = sc;
+            super.sendError(sc);
         }
         
         @Override
         public void sendError(int sc, String msg) throws IOException {
-            // TODO: Store status code and call super
+            status = sc;
+            super.sendError(sc, msg);
         }
         
         @Override
         public void sendRedirect(String location) throws IOException {
-            // TODO: Store status code (SC_FOUND) and call super
+            status = HttpServletResponse.SC_FOUND;
+            super.sendRedirect(location);
         }
         
         public int getStatus() {
